@@ -1,5 +1,7 @@
-// Reference: PMC5114347 — Normative lumbar spine DXA data for children 0–5 years
+// Reference: Manousaki D et al. (PMC5114347) — Normative lumbar spine DXA data, children 0–5 years
 // L=0 LMS model: Z = ln(X / M) / S
+// Kroger vBMD: BMAD = aBMD × 4 / (π × Width), Width = 椎体横幅
+// Carter vBMD: BMAD = aBMD / √Area = BMC / Area^1.5
 
 export type Sex = "male" | "female";
 export type Parameter = "areal_bmd" | "bmc" | "vbmd_kroger" | "vbmd_carter" | "area";

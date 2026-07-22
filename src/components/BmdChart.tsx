@@ -31,6 +31,16 @@ function toPath(pts: { x: number; y: number }[]): string {
   return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 }
 
+// Closed band between two curves (top left→right, bottom right→left)
+function toBandPath(
+  top: { x: number; y: number }[],
+  bot: { x: number; y: number }[]
+): string {
+  const fwd = toPath(top);
+  const rev = [...bot].reverse().map((p) => `L${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+  return `${fwd} ${rev} Z`;
+}
+
 export default function BmdChart({ sex, parameter, ageYears, measuredValue, zScore }: Props) {
   const { curves, toX, toY, yTicks, xTicks } = useMemo(() => {
     const ages = Array.from({ length: N_POINTS + 1 }, (_, i) => (i / N_POINTS) * AGE_MAX);
@@ -111,17 +121,31 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
         />
       ))}
 
-      {/* ±2 SD filled band */}
+      {/* ±1 SD filled band (inner) */}
       <path
-        d={`${toPath(curves.map((c) => ({ x: toX(c.age), y: toY(c.p2) })))} L${toX(AGE_MAX)},${toY(curves[curves.length - 1].m2)} ${toPath([...curves].reverse().map((c) => ({ x: toX(c.age), y: toY(c.m2) })))} Z`}
-        fill="rgba(239,68,68,0.08)"
+        d={toBandPath(
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.p1) })),
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.m1) }))
+        )}
+        fill="rgba(234,179,8,0.13)"
         stroke="none"
       />
 
-      {/* ±1 SD filled band */}
+      {/* ±2 SD outer strips (between ±1SD and ±2SD lines only) */}
       <path
-        d={`${toPath(curves.map((c) => ({ x: toX(c.age), y: toY(c.p1) })))} L${toX(AGE_MAX)},${toY(curves[curves.length - 1].m1)} ${toPath([...curves].reverse().map((c) => ({ x: toX(c.age), y: toY(c.m1) })))} Z`}
-        fill="rgba(234,179,8,0.1)"
+        d={toBandPath(
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.p2) })),
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.p1) }))
+        )}
+        fill="rgba(239,68,68,0.15)"
+        stroke="none"
+      />
+      <path
+        d={toBandPath(
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.m1) })),
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.m2) }))
+        )}
+        fill="rgba(239,68,68,0.15)"
         stroke="none"
       />
 
