@@ -63,7 +63,7 @@ export default function Home() {
     return ageYear + ageMonth / 12;
   }, [ageMode, ageYear, ageMonth, birthDate, measureDate]);
 
-  const ageOutOfRange = ageDecimal !== null && ageDecimal > 5;
+  const ageOutOfRange = ageDecimal !== null && ageDecimal >= 5;
 
   const { results, vbmdCarter, vbmdKroger, carterFormula } = useMemo(() => {
     const abmd = parsePositive(abmdInput);
@@ -174,7 +174,7 @@ export default function Home() {
                   <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">か月</label>
                   <select value={ageMonth} onChange={(e) => setAgeMonth(Number(e.target.value))} className={inputCls}>
                     {Array.from({ length: 12 }, (_, i) => i).map((m) => (
-                      <option key={m} value={m} disabled={ageYear === 4 && m > 11}>{m} か月</option>
+                      <option key={m} value={m}>{m} か月</option>
                     ))}
                   </select>
                 </div>
