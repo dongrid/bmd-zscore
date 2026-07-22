@@ -14,7 +14,7 @@ interface Props {
 
 const CHART = {
   vb: { w: 620, h: 380 },
-  pad: { top: 24, right: 24, bottom: 48, left: 60 },
+  pad: { top: 24, right: 56, bottom: 48, left: 60 },
 } as const;
 
 const plotW = CHART.vb.w - CHART.pad.left - CHART.pad.right;
