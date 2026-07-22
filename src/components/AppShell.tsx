@@ -49,7 +49,7 @@ export default function AppShell({
         </button>
       </header>
 
-      <main className={`flex-1 max-w-${maxWidth} mx-auto w-full px-6 py-8`}>
+      <main className={`flex-1 max-w-${maxWidth} mx-auto w-full px-3 sm:px-6 py-6 sm:py-8 overflow-x-hidden`}>
         {children}
       </main>
 

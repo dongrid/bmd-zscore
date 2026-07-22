@@ -240,7 +240,7 @@ export default function Home() {
         {/* Left: inputs */}
         <div className="flex flex-col gap-4">
           {/* Sex */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">性別</p>
             <div className="flex gap-2">
               {(["male", "female"] as Sex[]).map((s) => (
@@ -260,7 +260,7 @@ export default function Home() {
           </div>
 
           {/* Age + Measurements — unified card */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
               年齢 / DXA 測定値（L2–L4）
             </p>
@@ -282,16 +282,16 @@ export default function Home() {
             </div>
 
             {ageMode === "simple" ? (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex gap-3">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <select value={ageYear} onChange={(e) => setAgeYear(Number(e.target.value))} className={inputCls}>
                       {[0, 1, 2, 3, 4].map((y) => (
                         <option key={y} value={y}>{y} 歳</option>
                       ))}
                     </select>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <select value={ageMonth} onChange={(e) => setAgeMonth(Number(e.target.value))} className={inputCls}>
                       {Array.from({ length: 12 }, (_, i) => i).map((m) => (
                         <option key={m} value={m}>{m} か月</option>
@@ -418,14 +418,14 @@ export default function Home() {
                     </button>
                   </div>
                   {em.ageInputMode === "manual" ? (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex gap-2">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <select value={em.ageYear} onChange={(e) => updateExtra(em.id, "ageYear", Number(e.target.value))} className={inputSmCls}>
                             {[0, 1, 2, 3, 4].map((y) => <option key={y} value={y}>{y} 歳</option>)}
                           </select>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <select value={em.ageMonth} onChange={(e) => updateExtra(em.id, "ageMonth", Number(e.target.value))} className={inputSmCls}>
                             {Array.from({ length: 12 }, (_, i) => i).map((m) => <option key={m} value={m}>{m} か月</option>)}
                           </select>
@@ -500,7 +500,7 @@ export default function Home() {
         {/* Right: chart + reference table */}
         <div className="flex flex-col gap-4">
           {/* Chart */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
             <div className="mb-3">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {PARAM_META[chartParam].label} 標準曲線
