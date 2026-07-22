@@ -6,7 +6,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "骨密度 Zスコア",
-  description: "小児腰椎骨密度（DXA）の Zスコア計算・標準曲線ビジュアライズ",
+  description: "0〜5 歳小児の腰椎 DXA（L2–L4、Lunar Prodigy）から aBMD・BMC・vBMD の Zスコアを算出し、標準曲線にプロットします。",
 };
 
 export const viewport: Viewport = {
