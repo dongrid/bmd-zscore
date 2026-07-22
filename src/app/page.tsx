@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import AppShell from "@/components/AppShell";
 import BmdChart from "@/components/BmdChart";
+import type { ChartPoint } from "@/components/BmdChart";
 import {
   getReferenceValues,
   calcZScore,
@@ -13,6 +14,18 @@ import {
 } from "@/lib/bmd";
 
 const PARAMETERS: Parameter[] = ["areal_bmd", "bmc", "vbmd_kroger", "vbmd_carter", "area"];
+
+const EXTRA_COLORS = ["#f97316", "#a855f7", "#14b8a6", "#ec4899", "#84cc16", "#ef4444"];
+
+interface ExtraMeasurement {
+  id: string;
+  ageYear: number;
+  ageMonth: number;
+  abmd: string;
+  bmc: string;
+  area: string;
+  width: string;
+}
 
 function zColor(z: number): string {
   const abs = Math.abs(z);
@@ -32,10 +45,25 @@ function zInterpret(z: number): string {
 const inputCls =
   "w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
+const inputSmCls =
+  "w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500";
+
 function parsePositive(s: string): number | null {
   if (s === "") return null;
   const n = parseFloat(s);
   return !isNaN(n) && n > 0 ? n : null;
+}
+
+let idCounter = 0;
+function newId() { return String(++idCounter); }
+
+function computeVbmd(abmd: number | null, bmc: number | null, area: number | null, width: number | null) {
+  const vbmdCarter =
+    bmc !== null && area !== null ? bmc / Math.pow(area, 1.5)
+    : abmd !== null && area !== null ? abmd / Math.sqrt(area)
+    : null;
+  const vbmdKroger = abmd !== null && width !== null ? (abmd * 4) / (Math.PI * width) : null;
+  return { vbmdCarter, vbmdKroger };
 }
 
 export default function Home() {
@@ -52,6 +80,7 @@ export default function Home() {
   const [areaInput, setAreaInput] = useState<string>("");
   const [widthInput, setWidthInput] = useState<string>("");
   const [chartParam, setChartParam] = useState<Parameter>("areal_bmd");
+  const [extraMeasurements, setExtraMeasurements] = useState<ExtraMeasurement[]>([]);
 
   const ageDecimal = useMemo((): number | null => {
     if (ageMode === "exact") {
@@ -71,22 +100,11 @@ export default function Home() {
     const area = parsePositive(areaInput);
     const width = parsePositive(widthInput);
 
-    // Carter (1992) 原式: BMC / Area^1.5 を優先、BMC未入力時は aBMD / √Area
-    const vbmdCarter =
-      bmc !== null && area !== null
-        ? bmc / Math.pow(area, 1.5)
-        : abmd !== null && area !== null
-        ? abmd / Math.sqrt(area)
-        : null;
-
     const carterFormula =
       bmc !== null && area !== null ? "BMC / Area^1.5" :
       abmd !== null && area !== null ? "aBMD / √Area" : null;
 
-    const vbmdKroger =
-      abmd !== null && width !== null
-        ? (abmd * 4) / (Math.PI * width)
-        : null;
+    const { vbmdCarter, vbmdKroger } = computeVbmd(abmd, bmc, area, width);
 
     const measuredVals: Record<Parameter, number | null> = {
       areal_bmd: abmd,
@@ -110,6 +128,51 @@ export default function Home() {
   }, [sex, ageDecimal, ageOutOfRange, abmdInput, bmcInput, areaInput, widthInput]);
 
   const chartResult = results.find((r) => r.param === chartParam)!;
+
+  const extraPoints = useMemo((): ChartPoint[] => {
+    return extraMeasurements.map((em, idx) => {
+      const age = em.ageYear + em.ageMonth / 12;
+      const abmd = parsePositive(em.abmd);
+      const bmc = parsePositive(em.bmc);
+      const area = parsePositive(em.area);
+      const width = parsePositive(em.width);
+      const { vbmdCarter, vbmdKroger } = computeVbmd(abmd, bmc, area, width);
+
+      const measuredVals: Record<Parameter, number | null> = {
+        areal_bmd: abmd, bmc, vbmd_kroger: vbmdKroger, vbmd_carter: vbmdCarter, area,
+      };
+
+      const val = measuredVals[chartParam];
+      const inRange = age >= 0 && age < 5;
+      const { M, S } = getReferenceValues(sex, chartParam, inRange ? age : 0);
+      const z = val !== null && S > 0 && inRange ? calcZScore(val, M, S) : null;
+
+      return {
+        age,
+        value: val,
+        z,
+        label: String(idx + 2),
+        color: EXTRA_COLORS[idx % EXTRA_COLORS.length],
+      };
+    });
+  }, [extraMeasurements, sex, chartParam]);
+
+  function addExtra() {
+    setExtraMeasurements((prev) => [
+      ...prev,
+      { id: newId(), ageYear: 0, ageMonth: 6, abmd: "", bmc: "", area: "", width: "" },
+    ]);
+  }
+
+  function removeExtra(id: string) {
+    setExtraMeasurements((prev) => prev.filter((em) => em.id !== id));
+  }
+
+  function updateExtra(id: string, field: keyof Omit<ExtraMeasurement, "id">, value: string | number) {
+    setExtraMeasurements((prev) =>
+      prev.map((em) => em.id === id ? { ...em, [field]: value } : em)
+    );
+  }
 
   return (
     <AppShell
@@ -142,7 +205,12 @@ export default function Home() {
 
           {/* Age */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">年齢（0〜5 歳）</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+              年齢（0〜5 歳）
+              {extraMeasurements.length > 0 && (
+                <span className="ml-1 text-blue-500">— 測定値 1</span>
+              )}
+            </p>
             {/* Mode toggle */}
             <div className="flex gap-2 mb-3">
               {(["simple", "exact"] as const).map((mode) => (
@@ -210,7 +278,12 @@ export default function Home() {
 
           {/* Measurements */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">DXA 測定値（L2–L4）</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+              DXA 測定値（L2–L4）
+              {extraMeasurements.length > 0 && (
+                <span className="ml-1 text-blue-500">— 測定値 1</span>
+              )}
+            </p>
             <div className="flex flex-col gap-3">
               <div>
                 <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">Areal BMD (g/cm²)</label>
@@ -269,6 +342,129 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Extra measurements */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">経過プロット</p>
+              <button
+                onClick={addExtra}
+                disabled={extraMeasurements.length >= 6}
+                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                + 測定値を追加
+              </button>
+            </div>
+
+            {extraMeasurements.length === 0 ? (
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
+                複数の時点をグラフに重ねてプロットできます
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {extraMeasurements.map((em, idx) => {
+                  return (
+                    <div key={em.id} className="flex flex-col gap-2 pt-3 border-t border-slate-100 dark:border-slate-700 first:border-0 first:pt-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full flex-shrink-0 bg-blue-500" />
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                            測定値 {idx + 2}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removeExtra(em.id)}
+                          className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        >
+                          削除
+                        </button>
+                      </div>
+
+                      {/* Age row */}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">年</label>
+                          <select
+                            value={em.ageYear}
+                            onChange={(e) => updateExtra(em.id, "ageYear", Number(e.target.value))}
+                            className={inputSmCls}
+                          >
+                            {[0, 1, 2, 3, 4].map((y) => (
+                              <option key={y} value={y}>{y} 歳</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">か月</label>
+                          <select
+                            value={em.ageMonth}
+                            onChange={(e) => updateExtra(em.id, "ageMonth", Number(e.target.value))}
+                            className={inputSmCls}
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i).map((m) => (
+                              <option key={m} value={m}>{m} か月</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Measurement inputs */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">aBMD (g/cm²)</label>
+                          <input
+                            type="number"
+                            value={em.abmd}
+                            onChange={(e) => updateExtra(em.id, "abmd", e.target.value)}
+                            placeholder="0.35"
+                            step={0.001}
+                            min={0}
+                            className={inputSmCls}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">BMC (g)</label>
+                          <input
+                            type="number"
+                            value={em.bmc}
+                            onChange={(e) => updateExtra(em.id, "bmc", e.target.value)}
+                            placeholder="3.0"
+                            step={0.1}
+                            min={0}
+                            className={inputSmCls}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">Area (cm²)</label>
+                          <input
+                            type="number"
+                            value={em.area}
+                            onChange={(e) => updateExtra(em.id, "area", e.target.value)}
+                            placeholder="8.0"
+                            step={0.1}
+                            min={0}
+                            className={inputSmCls}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 dark:text-slate-500 mb-1 block">Width (cm)</label>
+                          <input
+                            type="number"
+                            value={em.width}
+                            onChange={(e) => updateExtra(em.id, "width", e.target.value)}
+                            placeholder="2.5"
+                            step={0.01}
+                            min={0}
+                            className={inputSmCls}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Z-score summary */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
@@ -306,11 +502,11 @@ export default function Home() {
         <div className="flex flex-col gap-4">
           {/* Chart */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {PARAM_META[chartParam].description} 参照曲線
               </p>
-              <div className="flex gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-4 border-t-2 border-emerald-500" />
                   Mean
@@ -326,7 +522,13 @@ export default function Home() {
                 {chartResult.z !== null && (
                   <span className="flex items-center gap-1">
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    患者値
+                    {extraMeasurements.length > 0 ? "測定値 1" : "患者値"}
+                  </span>
+                )}
+                {extraPoints.some((pt) => pt.value !== null) && (
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    測定値 2〜
                   </span>
                 )}
               </div>
@@ -336,7 +538,9 @@ export default function Home() {
             {chartResult.z !== null && (
               <div className="mb-3 rounded-xl bg-slate-50 dark:bg-slate-900 px-4 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Z スコア</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Z スコア{extraMeasurements.length > 0 ? "（測定値 1）" : ""}
+                  </p>
                   <p className={`text-2xl font-bold tabular-nums ${zColor(chartResult.z)}`}>
                     {chartResult.z >= 0 ? "+" : ""}{chartResult.z.toFixed(2)}
                   </p>
@@ -357,6 +561,7 @@ export default function Home() {
               ageYears={ageDecimal ?? null}
               measuredValue={chartResult.val}
               zScore={chartResult.z}
+              additionalPoints={extraPoints}
             />
             <p className="mt-2 text-right text-xs text-slate-400 dark:text-slate-500">
               参照: Manousaki D et al., <em>J Musculoskelet Neuronal Interact.</em> 2016 (PMCID: PMC5114347)

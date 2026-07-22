@@ -4,12 +4,21 @@ import { useMemo } from "react";
 import { getReferenceValues } from "@/lib/bmd";
 import type { Sex, Parameter } from "@/lib/bmd";
 
+export interface ChartPoint {
+  age: number;
+  value: number | null;
+  z: number | null;
+  label: string;
+  color: string;
+}
+
 interface Props {
   sex: Sex;
   parameter: Parameter;
   ageYears: number | null;
   measuredValue: number | null;
   zScore: number | null;
+  additionalPoints?: ChartPoint[];
 }
 
 const CHART = {
@@ -31,7 +40,6 @@ function toPath(pts: { x: number; y: number }[]): string {
   return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 }
 
-// Closed band between two curves (top left→right, bottom right→left)
 function toBandPath(
   top: { x: number; y: number }[],
   bot: { x: number; y: number }[]
@@ -41,7 +49,7 @@ function toBandPath(
   return `${fwd} ${rev} Z`;
 }
 
-export default function BmdChart({ sex, parameter, ageYears, measuredValue, zScore }: Props) {
+export default function BmdChart({ sex, parameter, ageYears, measuredValue, zScore, additionalPoints = [] }: Props) {
   const { curves, toX, toY, yTicks, xTicks } = useMemo(() => {
     const ages = Array.from({ length: N_POINTS + 1 }, (_, i) => (i / N_POINTS) * AGE_MAX);
 
@@ -59,6 +67,9 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
 
     const allVals = curveData.flatMap((c) => [c.m2, c.p2]);
     if (measuredValue !== null) allVals.push(measuredValue);
+    for (const p of additionalPoints) {
+      if (p.value !== null) allVals.push(p.value);
+    }
 
     const rawMin = Math.min(...allVals);
     const rawMax = Math.max(...allVals);
@@ -69,23 +80,34 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
     const toX = (age: number) => plotX0 + (age / AGE_MAX) * plotW;
     const toY = (val: number) => plotY1 - ((val - yMin) / (yMax - yMin)) * plotH;
 
-    // Y axis ticks: 5 evenly spaced
     const yStep = (yMax - yMin) / 5;
     const yTicks = Array.from({ length: 6 }, (_, i) => yMin + yStep * i);
-
-    // X axis ticks: 0, 1, 2, 3, 4, 5
     const xTicks = [0, 1, 2, 3, 4, 5];
 
     return { curves: curveData, toX, toY, yTicks, xTicks };
-  }, [sex, parameter, measuredValue]);
+  }, [sex, parameter, measuredValue, additionalPoints]);
 
   const pathFor = (key: "m2" | "m1" | "mean" | "p1" | "p2") =>
     toPath(curves.map((c) => ({ x: toX(c.age), y: toY(c[key]) })));
 
   const patientX = ageYears !== null ? toX(ageYears) : null;
   const patientY = measuredValue !== null ? toY(measuredValue) : null;
+  const hasMultiple = additionalPoints.length > 0;
 
-  const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+  // Collect all valid points and sort by age to draw connecting line
+  const connectLine = useMemo(() => {
+    const pts: { x: number; y: number }[] = [];
+    if (ageYears !== null && measuredValue !== null && ageYears >= 0 && ageYears < AGE_MAX) {
+      pts.push({ x: toX(ageYears), y: toY(measuredValue) });
+    }
+    for (const p of additionalPoints) {
+      if (p.value !== null && p.age >= 0 && p.age < AGE_MAX) {
+        pts.push({ x: toX(p.age), y: toY(p.value) });
+      }
+    }
+    pts.sort((a, b) => a.x - b.x);
+    return pts.length >= 2 ? toPath(pts) : null;
+  }, [ageYears, measuredValue, additionalPoints, toX, toY]);
 
   const gridColor = "rgba(100,116,139,0.2)";
   const axisColor = "#94a3b8";
@@ -99,26 +121,10 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
     >
       {/* Grid lines */}
       {yTicks.map((val, i) => (
-        <line
-          key={i}
-          x1={plotX0}
-          y1={toY(val)}
-          x2={plotX1}
-          y2={toY(val)}
-          stroke={gridColor}
-          strokeWidth={1}
-        />
+        <line key={i} x1={plotX0} y1={toY(val)} x2={plotX1} y2={toY(val)} stroke={gridColor} strokeWidth={1} />
       ))}
       {xTicks.map((age) => (
-        <line
-          key={age}
-          x1={toX(age)}
-          y1={plotY0}
-          x2={toX(age)}
-          y2={plotY1}
-          stroke={gridColor}
-          strokeWidth={1}
-        />
+        <line key={age} x1={toX(age)} y1={plotY0} x2={toX(age)} y2={plotY1} stroke={gridColor} strokeWidth={1} />
       ))}
 
       {/* ±1 SD filled band (inner) */}
@@ -131,7 +137,7 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
         stroke="none"
       />
 
-      {/* ±2 SD outer strips (between ±1SD and ±2SD lines only) */}
+      {/* ±2 SD outer strips */}
       <path
         d={toBandPath(
           curves.map((c) => ({ x: toX(c.age), y: toY(c.p2) })),
@@ -167,29 +173,52 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
         const last = curves[curves.length - 1];
         const y = toY(last[key]);
         return (
-          <text
-            key={key}
-            x={plotX1 + 4}
-            y={y + 4}
-            fontSize={9}
-            fill={color}
-            fontWeight={500}
-          >
+          <text key={key} x={plotX1 + 4} y={y + 4} fontSize={9} fill={color} fontWeight={500}>
             {label}
           </text>
         );
       })}
 
-      {/* Patient point */}
+      {/* Connecting line between all patient points */}
+      {connectLine && (
+        <path d={connectLine} fill="none" stroke="#3b82f6" strokeWidth={1.5} opacity={0.6} />
+      )}
+
+      {/* Additional points (drawn before main so main appears on top) */}
+      {additionalPoints.map((pt) => {
+        if (pt.value === null || pt.age < 0 || pt.age >= AGE_MAX) return null;
+        const cx = toX(pt.age);
+        const cy = toY(pt.value);
+        return (
+          <g key={pt.label}>
+            <circle cx={cx} cy={cy} r={5} fill="#3b82f6" stroke="white" strokeWidth={2} />
+            <text x={cx + 8} y={cy - 6} fontSize={10} fontWeight={700} fill="#3b82f6">
+              {pt.label}
+            </text>
+            {pt.z !== null && (
+              <text x={cx + 8} y={cy + 6} fontSize={9} fill="#3b82f6">
+                Z={pt.z >= 0 ? "+" : ""}{pt.z.toFixed(2)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+
+      {/* Main patient point */}
       {patientX !== null && patientY !== null && (
         <g>
           <circle cx={patientX} cy={patientY} r={6} fill="#3b82f6" stroke="white" strokeWidth={2} />
+          {hasMultiple && (
+            <text x={patientX + 8} y={patientY - 6} fontSize={10} fontWeight={700} fill="#3b82f6">
+              1
+            </text>
+          )}
           {zScore !== null && (
             <text
-              x={patientX}
-              y={patientY - 10}
-              textAnchor="middle"
-              fontSize={11}
+              x={hasMultiple ? patientX + 8 : patientX}
+              y={hasMultiple ? patientY + 6 : patientY - 10}
+              textAnchor={hasMultiple ? "start" : "middle"}
+              fontSize={hasMultiple ? 9 : 11}
               fontWeight={700}
               fill="#3b82f6"
             >
@@ -212,13 +241,7 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
           </text>
         </g>
       ))}
-      <text
-        x={plotX0 + plotW / 2}
-        y={CHART.vb.h - 6}
-        textAnchor="middle"
-        fontSize={11}
-        fill={textColor}
-      >
+      <text x={plotX0 + plotW / 2} y={CHART.vb.h - 6} textAnchor="middle" fontSize={11} fill={textColor}>
         年齢（歳）
       </text>
 
