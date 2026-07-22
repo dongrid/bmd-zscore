@@ -17,7 +17,7 @@ export interface ParamMeta {
 
 export const PARAM_META: Record<Parameter, ParamMeta> = {
   areal_bmd: {
-    label: "Areal BMD",
+    label: "aBMD",
     unit: "g/cm²",
     description: "面積骨密度（L2–L4）",
     step: 0.001,
@@ -33,7 +33,7 @@ export const PARAM_META: Record<Parameter, ParamMeta> = {
     defaultVal: 3.0,
   },
   vbmd_kroger: {
-    label: "vBMD (Kroger法)",
+    label: "vBMD Kroger法",
     unit: "g/cm³",
     description: "体積骨密度・Kroger法（L2–L4）",
     step: 0.001,
@@ -41,7 +41,7 @@ export const PARAM_META: Record<Parameter, ParamMeta> = {
     defaultVal: 0.22,
   },
   vbmd_carter: {
-    label: "vBMD (Carter法)",
+    label: "vBMD Carter法",
     unit: "g/cm³",
     description: "体積骨密度・Carter法（L2–L4）",
     step: 0.001,

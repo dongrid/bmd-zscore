@@ -19,6 +19,8 @@ interface Props {
   measuredValue: number | null;
   zScore: number | null;
   additionalPoints?: ChartPoint[];
+  onPointClick?: (label: string) => void;
+  selectedLabel?: string | null;
 }
 
 const CHART = {
@@ -49,7 +51,7 @@ function toBandPath(
   return `${fwd} ${rev} Z`;
 }
 
-export default function BmdChart({ sex, parameter, ageYears, measuredValue, zScore, additionalPoints = [] }: Props) {
+export default function BmdChart({ sex, parameter, ageYears, measuredValue, zScore, additionalPoints = [], onPointClick, selectedLabel }: Props) {
   const { curves, toX, toY, yTicks, xTicks } = useMemo(() => {
     const ages = Array.from({ length: N_POINTS + 1 }, (_, i) => (i / N_POINTS) * AGE_MAX);
 
@@ -117,7 +119,7 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
     <svg
       viewBox={`0 0 ${CHART.vb.w} ${CHART.vb.h}`}
       className="w-full h-auto"
-      aria-label="骨密度参照曲線"
+      aria-label="骨密度標準曲線"
     >
       {/* Grid lines */}
       {yTicks.map((val, i) => (
@@ -127,23 +129,23 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
         <line key={age} x1={toX(age)} y1={plotY0} x2={toX(age)} y2={plotY1} stroke={gridColor} strokeWidth={1} />
       ))}
 
-      {/* ±1 SD filled band (inner) */}
+      {/* ±1 SD filled band — green (normal range) */}
       <path
         d={toBandPath(
           curves.map((c) => ({ x: toX(c.age), y: toY(c.p1) })),
           curves.map((c) => ({ x: toX(c.age), y: toY(c.m1) }))
         )}
-        fill="rgba(234,179,8,0.13)"
+        fill="rgba(34,197,94,0.12)"
         stroke="none"
       />
 
-      {/* ±2 SD outer strips */}
+      {/* ±1–2 SD strips — amber */}
       <path
         d={toBandPath(
           curves.map((c) => ({ x: toX(c.age), y: toY(c.p2) })),
           curves.map((c) => ({ x: toX(c.age), y: toY(c.p1) }))
         )}
-        fill="rgba(239,68,68,0.15)"
+        fill="rgba(245,158,11,0.15)"
         stroke="none"
       />
       <path
@@ -151,7 +153,25 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
           curves.map((c) => ({ x: toX(c.age), y: toY(c.m1) })),
           curves.map((c) => ({ x: toX(c.age), y: toY(c.m2) }))
         )}
-        fill="rgba(239,68,68,0.15)"
+        fill="rgba(245,158,11,0.15)"
+        stroke="none"
+      />
+
+      {/* Beyond ±2 SD — subtle red */}
+      <path
+        d={toBandPath(
+          curves.map((c) => ({ x: toX(c.age), y: plotY0 })),
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.p2) }))
+        )}
+        fill="rgba(239,68,68,0.07)"
+        stroke="none"
+      />
+      <path
+        d={toBandPath(
+          curves.map((c) => ({ x: toX(c.age), y: toY(c.m2) })),
+          curves.map((c) => ({ x: toX(c.age), y: plotY1 }))
+        )}
+        fill="rgba(239,68,68,0.07)"
         stroke="none"
       />
 
@@ -189,9 +209,11 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
         if (pt.value === null || pt.age < 0 || pt.age >= AGE_MAX) return null;
         const cx = toX(pt.age);
         const cy = toY(pt.value);
+        const isSelected = selectedLabel === pt.label;
         return (
-          <g key={pt.label}>
-            <circle cx={cx} cy={cy} r={5} fill="#3b82f6" stroke="white" strokeWidth={2} />
+          <g key={pt.label} onClick={() => onPointClick?.(pt.label)} style={{ cursor: onPointClick ? "pointer" : undefined }}>
+            <circle cx={cx} cy={cy} r={14} fill="transparent" />
+            <circle cx={cx} cy={cy} r={isSelected ? 7 : 5} fill="#3b82f6" stroke="white" strokeWidth={isSelected ? 3 : 2} />
             <text x={cx + 8} y={cy - 6} fontSize={10} fontWeight={700} fill="#3b82f6">
               {pt.label}
             </text>
@@ -206,8 +228,9 @@ export default function BmdChart({ sex, parameter, ageYears, measuredValue, zSco
 
       {/* Main patient point */}
       {patientX !== null && patientY !== null && (
-        <g>
-          <circle cx={patientX} cy={patientY} r={6} fill="#3b82f6" stroke="white" strokeWidth={2} />
+        <g onClick={() => onPointClick?.("1")} style={{ cursor: onPointClick ? "pointer" : undefined }}>
+          <circle cx={patientX} cy={patientY} r={14} fill="transparent" />
+          <circle cx={patientX} cy={patientY} r={selectedLabel === "1" || selectedLabel == null ? 7 : 5} fill="#3b82f6" stroke="white" strokeWidth={selectedLabel === "1" || selectedLabel == null ? 3 : 2} />
           {hasMultiple && (
             <text x={patientX + 8} y={patientY - 6} fontSize={10} fontWeight={700} fill="#3b82f6">
               1
