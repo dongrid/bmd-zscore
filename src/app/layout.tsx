@@ -5,8 +5,8 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "骨密度 Z スコア",
-  description: "小児腰椎骨密度（DXA）の Z スコア計算・参照曲線ビジュアライズ",
+  title: "骨密度 Zスコア",
+  description: "小児腰椎骨密度（DXA）の Zスコア計算・標準曲線ビジュアライズ",
 };
 
 export const viewport: Viewport = {
