@@ -114,7 +114,7 @@ export default function Home() {
   return (
     <AppShell
       title="骨密度 Z スコア"
-      subtitle="小児腰椎骨密度（L2–L4 DXA）参照曲線 — 0〜5 歳"
+      subtitle="小児腰椎骨密度（L2–L4 DXA）参照曲線 — 0〜5 歳 | Lunar Prodigy"
       maxWidth="6xl"
     >
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
@@ -312,15 +312,15 @@ export default function Home() {
               </p>
               <div className="flex gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-0.5 bg-emerald-500" />
+                  <span className="inline-block w-4 border-t-2 border-emerald-500" />
                   Mean
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-0.5 bg-amber-400" style={{ borderTop: "2px dashed" }} />
+                  <span className="inline-block w-4 border-t-2 border-dashed border-amber-400" />
                   ±1 SD
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-0.5 bg-red-400" style={{ borderTop: "2px dashed" }} />
+                  <span className="inline-block w-4 border-t-2 border-dashed border-red-400" />
                   ±2 SD
                 </span>
                 {chartResult.z !== null && (
